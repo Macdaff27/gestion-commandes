@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gestion des Commandes</title>
+  <style>
+    /* Police monospace appliquée à tout le corps */
+    body {
+      font-family: 'Consolas', 'Lucida Console', 'Monaco', monospace;      
+      background-color: #0d1117; /* Fond sombre pour l'effet Aurora */
+      color: var(--text-primary);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      line-height: 1.6;
+      position: relative;
+      overflow-x: hidden; /* Empêche le scroll horizontal causé par les blobs */
+    }
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      z-index: -1;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.7;
+    }
+    body::before {
+      width: 400px;
+      height: 400px;
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      top: -100px;
+      left: -100px;
+      animation: move-blob-1 15s infinite alternate ease-in-out;
+    }
+    body::after {
+      width: 500px;
+      height: 500px;
+      background: linear-gradient(135deg, #ec4899, #f59e0b);
+      bottom: -150px;
+      right: -150px;
+      animation: move-blob-2 20s infinite alternate ease-in-out;
+    }
+    :root {
+      --primary: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); /* Bleu foncé pour tous les boutons */
+      --primary-dark: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+      --secondary: #f8fafc;
+      --accent: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --text-primary: #e5e7eb; /* Texte clair pour fond sombre */
+      --text-secondary: #9ca3af;
+      --text-muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.1);
+      --surface: rgba(30, 41, 59, 0.5); /* Surfaces sombres et semi-transparentes */
+      --surface-hover: rgba(51, 65, 85, 0.7);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+      --shadow-xl: 0 20px 25px -5px rgba(0,0,0,.1), 0 10px 10px -5px rgba(0,0,0,.04);
+      --radius: 12px;
+      --radius-lg: 16px;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html {
+      scroll-behavior: smooth;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+      position: relative;
+    }
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      background: none;
+      -webkit-background-clip: initial;
+      -webkit-text-fill-color: initial;
+      background-clip: initial;
+      margin: 0;
+      color: #fff;
+      letter-spacing: -.02em;
+    }
+    .header p {
+      color: var(--text-secondary);
+      font-size: 1.125rem;
+      margin-top: .5rem;
+      font-weight: 300;
+    }
+    /* Style de verre dépoli pour l'effet Aurora */
+    .glass {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 20px 0 rgba(0, 0, 0, 0.25);
+    }
+    .form-container {
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      transition: transform .3s ease, box-shadow .3s ease;
+    }
+    .form-container:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-xl);
+    }
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (min-width: 768px) {
+      .form-grid {
+        grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;
+      }
+    }
+    .input-group {
+      position: relative;
+    }
+    .input-group label {
+      display: block;
+      font-size: .875rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: .5rem;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: .875rem 1rem;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 1rem;
+      transition: all .2s ease;
+      background: var(--surface);
+      font-family: inherit;
+      color: var(--text-primary); /* Assure que le texte est blanc */
+    }
+    /* Masquer les flèches sur les champs de type nombre */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, .1);
+    }
+    input::placeholder, textarea::placeholder {
+      color: var(--text-muted);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      padding: .875rem 1.5rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: .975rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s ease;
+      font-family: inherit;
+      text-decoration: none;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
+      transition: left .5s;
+    }
+    .btn:hover::before {
+      left: 100%;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+    .btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text-primary);
+      border: 2px solid var(--border);
+    }
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+      border-color: #2563eb;
+    }
+    .btn-success {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-success:hover {
+      background: #059669;
+    }
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    @media (min-width: 768px) {
+      .controls {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+    .multi-search-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      flex: 1;
+    }
+    @media (max-width: 992px) {
+      .multi-search-container {
+        grid-template-columns: 1fr;
+      }
+    }
+    .multi-search-container input {
+      background: var(--surface);
+    }
+    .controls-right {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+    }
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+    }
+    .file-input {
+      position: absolute;
+      left: -9999px;
+      opacity: 0;
+    }
+    .clients-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+    }
+    .client-card {
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      transition: all .3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .client-card::before {
+      display: none;
+    }
+    .client-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px 0 rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .client-header {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1rem;
+    }
+    .client-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 600;
+      font-size: 1.25rem;
+    }
+    .client-name {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .client-info {
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .9rem;
+      color: var(--text-secondary);
+    }
+    .info-icon {
+      width: 16px;
+      height: 16px;
+    }
+    .client-note {
+      background: var(--secondary);
+      padding: .75rem;
+      border-radius: var(--radius);
+      border-left: 3px solid var(--accent);
+      font-size: .9rem;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+    .client-actions {
+      display: flex;
+      gap: .5rem;
+    }
+    .btn-sm {
+      padding: .5rem 1rem;
+      font-size: .875rem;
+      flex: 1;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+    }
+    .empty-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+      opacity: .5;
+    }
+    .empty-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: .5rem;
+    }
+    .empty-text {
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+    /* Boutons statistiques - tous en bleu avec texte blanc */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+    .btn-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      min-width: 140px;
+      font-size: 1rem;
+      border-radius: var(--radius);
+      text-align: center;
+      transition: transform 0.2s ease;
+      background: transparent; /* Le style vient de la classe .glass */
+      color: white;
+    }
+    .btn-stat:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    }
+    .btn-stat.active {
+      border-color: rgba(96, 165, 250, 0.8); /* Bleu clair pour indiquer l'état actif */
+      background: rgba(59, 130, 246, 0.2); /* Fond bleu semi-transparent */
+    }
+    .stat-number {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: white;
+    }
+    .stat-label {
+      font-size: .875rem;
+      color: white;
+      margin-top: .25rem;
+    }
+    .sync-status {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--surface);
+      padding: .75rem 1rem;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      display: none;
+      align-items: center;
+      gap: .5rem;
+      font-size: .875rem;
+      z-index: 1000;
+    }
+    .sync-status.show {
+      display: flex;
+      animation: slideInUp .3s ease;
+    }
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top: 2px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes move-blob-1 {
+      from { transform: translate(-20%, 20%) rotate(0deg); }
+      to { transform: translate(20%, -20%) rotate(180deg); }
+    }
+    @keyframes move-blob-2 {
+      from { transform: translate(10%, -10%) rotate(0deg); }
+      to { transform: translate(-10%, 10%) rotate(-180deg); }
+    }
+
+    /* Amélioration de l'accessibilité et des performances */
+    @media (prefers-reduced-motion: reduce) {
+      body::before, body::after {
+        animation: none; /* Désactive les animations pour les utilisateurs qui le demandent */
+      }
+    }
+
+    @media (max-width: 767px) {
+      .container {
+        padding: 1rem;
+      }
+      .form-container {
+        padding: 1.5rem;
+      }
+      .clients-grid {
+        grid-template-columns: 1fr;
+      }
+      .controls-right {
+        justify-content: stretch;
+      }
+      .controls-right .btn {
+        flex: 1;
+      }
+    }
+    .client-card.en-cours {
+      border-left: 5px solid #f59e0b; /* Barre latérale un peu plus fine */
+      background: transparent;
+    }
+    .client-card.terminee {
+      border-left: 5px solid #10b981; /* Barre latérale un peu plus fine */
+      background: transparent;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      font-size: .75rem;
+      padding: .25rem .5rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-secondary);
+    }
+    .status-badge.en-cours {
+      border-color: #f59e0b;
+      color: #fcd34d;
+      background: rgba(251, 146, 60, 0.1);
+    }
+    .status-badge.terminee {
+      border-color: #10b981;
+      color: #6ee7b7;
+      background: rgba(16, 185, 129, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Gestion des Commandes</h1>
+    </div>
+
+    <!-- Boutons statistiques - tous en bleu -->
+    <div class="stats">
+      <button class="btn-stat glass" id="btn-stat-tous" onclick="filtrerParStatut('tous')">
+        <div class="stat-number" id="total-clients">0</div>
+        <div class="stat-label">Total Clients</div>
+      </button>
+      <button class="btn-stat glass" id="btn-stat-en_cours" onclick="filtrerParStatut('en_cours')">
+        <div class="stat-number" id="en-cours-count">0</div>
+        <div class="stat-label">Commandes en cours</div>
+      </button>
+      <button class="btn-stat glass" id="btn-stat-terminee" onclick="filtrerParStatut('terminee')">
+        <div class="stat-number" id="terminee-count">0</div>
+        <div class="stat-label">Commandes terminées</div>
+      </button>
+      <div class="btn-stat glass">
+        <div class="stat-number" id="total-restant-value">0.00</div>
+        <div class="stat-label">Total Restant (DA)</div>
+      </div>
+    </div>
+
+    <div class="form-container glass" id="client-form-anchor">
+      <form onsubmit="ajouterCliente(event)">
+        <div class="form-grid">
+          <div class="input-group">
+            <label for="nom">Nom du client</label>
+            <input type="text" id="nom" placeholder="Entrez le nom du client" required>
+          </div>
+          <div class="input-group">
+            <label for="montantRestant">Montant Restant (DA)</label>
+            <input type="number" id="montantRestant" placeholder="Montant restant" step="0.01">
+          </div>
+          <div class="input-group">
+            <label for="page">Page</label>
+            <input type="number" id="page" placeholder="N° page" min="1" required>
+          </div>
+          <div class="input-group">
+            <label for="statut">Statut de la commande</label>
+            <select id="statut">
+              <option value="en_cours">Commande en cours</option>
+              <option value="terminee">Commande terminée</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label for="dateAdded">Date création (édit.)</label>
+            <input type="date" id="dateAdded" disabled>
+          </div>
+        </div>
+        <div class="input-group" style="margin-bottom: 1.5rem;">
+          <label for="note">Note</label>
+          <textarea id="note" placeholder="Ajoutez une note ou description..."></textarea>
+        </div>
+        <div id="telephones-manager" style="display: none; margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: .5rem; font-size: .875rem; font-weight: 500; color: var(--text-secondary);">Téléphones</label>
+          <div id="telephones-list-form" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <!-- Les numéros de téléphone seront ajoutés ici dynamiquement -->
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="tel" id="telephone-input" placeholder="Ajouter un numéro" style="flex: 1;">
+            <button type="button" class="btn btn-secondary btn-icon-add" onclick="ajouterTelephoneAuFormulaire()" title="Ajouter un numéro">
+              <span>➕</span>
+            </button>
+          </div>
+        </div>
+
+        <input type="hidden" id="clientId">
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <span>💾</span>
+            <span id="btn-text">Ajouter le client</span>
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel" style="display: none;" onclick="annulerEdition()">
+              <span>❌</span>
+              <span>Annuler</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="controls">
+      <div class="multi-search-container">
+        <div class="input-group">
+          <label for="search-nom">Recherche par Nom</label>
+          <input type="text" id="search-nom" placeholder="Filtrer par nom...">
+        </div>
+        <div class="input-group">
+          <label for="search-page">Recherche par Page</label>
+          <input type="text" id="search-page" placeholder="Filtrer par page...">
+        </div>
+        <div class="input-group">
+          <label for="search-note">Recherche par Note</label>
+          <input type="text" id="search-note" placeholder="Filtrer par note...">
+        </div>
+      </div>
+      <div class="controls-right">
+        <button class="btn btn-secondary" onclick="exporterClientes()">
+          <span>📤</span>
+          <span>Exporter</span>
+        </button>
+        <div class="file-input-wrapper">
+          <input type="file" id="file-import" class="file-input" accept="application/json" onchange="importerClientes(event)">
+          <label for="file-import" class="btn btn-secondary">
+            <span>📥</span>
+            <span>Importer</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div id="clients-list" class="clients-grid"></div>
+    <div id="empty-state" class="empty-state" style="display: none;">
+      <div class="empty-icon">👥</div>
+      <div class="empty-title">Aucun client pour le moment</div>
+      <div class="empty-text">Commencez par ajouter votre premier client en utilisant le formulaire ci-dessus.</div>
+    </div>
+  </div>
+
+  <div class="sync-status" id="sync-notification" role="status" aria-live="polite">
+    <div class="spinner"></div>
+    <span>Synchronisation...</span>
+  </div>
+
+  <script>
+    /**
+     * Échappe les caractères HTML pour éviter l'XSS
+     * @param {string} text
+     * @returns {string}
+     */
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    /**
+     * Copie un numéro dans le presse-papiers
+     * @param {string} numero
+     * @param {Event} event
+     */
+    async function copierNumero(numero, event) {
+      event.stopPropagation(); // Empêche le déclenchement d'autres événements de clic (comme l'édition)
+      try {
+        await navigator.clipboard.writeText(numero);
+        showSyncNotification(`Numéro ${numero} copié!`);
+      } catch (err) {
+        console.error('Erreur de copie:', err);
+        showSyncNotification('Copie échouée.');
+      }
+    }
+
+    /**
+     * Supprime un numéro de téléphone d'un client.
+     * @param {number} clientId
+     * @param {number} telephoneIndex
+     */
+    async function supprimerTelephone(clientId, telephoneIndex) {
+      if (confirm("Êtes-vous sûr de vouloir supprimer ce numéro de téléphone ?")) {
+        try {
+          const client = await db.get(clientId);
+          if (client && client.telephones && typeof client.telephones[telephoneIndex] !== 'undefined') {
+            client.telephones.splice(telephoneIndex, 1);
+            client.lastModified = new Date().toISOString();
+            await db.update(client);
+            showSyncNotification('Numéro de téléphone supprimé.');
+            await refreshClientList();
+          }
+        } catch (error) {
+          console.error("Erreur de suppression du téléphone:", error);
+          showSyncNotification("Erreur lors de la suppression.");
+        }
+      }
+    }
+
+    /**
+     * Ajoute un numéro de téléphone à la liste dans le formulaire d'édition.
+     */
+    function ajouterTelephoneAuFormulaire() {
+      const input = document.getElementById('telephone-input');
+      const telephone = input.value.trim();
+      if (telephone) {
+        const list = document.getElementById('telephones-list-form');
+        const div = document.createElement('div');
+        div.className = 'telephone-form-item';
+        div.innerHTML = `
+          <input type="text" class="telephone-form-input" value="${escapeHtml(telephone)}" readonly>
+          <button type="button" class="btn btn-danger btn-icon-delete" onclick="this.parentElement.remove()">❌</button>
+        `;
+        list.appendChild(div);
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    /**
+     * Valide qu'un client a les champs requis
+     * @param {Object} c
+     * @returns {boolean}
+     */
+    function isValidClient(c) {
+      return c &&
+        typeof c.nom === 'string' && c.nom.trim().length > 0 &&
+        typeof c.page === 'number' && c.page >= 1 &&
+        ['en_cours', 'terminee'].includes(c.statut);
+      // Le montant restant est optionnel pour la validation, il sera initialisé si manquant.
+    }
+
+    // --- BASE DE DONNÉES (IndexedDB) ---
+    const db = {
+      _db: null,
+      _dbName: 'GestionClientsDB',
+      init(version = 2) { // On passe à la version 2 pour ajouter les nouveaux index
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(this._dbName, version);
+          request.onerror = () => reject('Erreur de base de données');
+          request.onupgradeneeded = (event) => {
+            const dbInstance = event.target.result;
+            let objectStore;
+            // Si le magasin d'objets n'existe pas, on le crée
+            if (!dbInstance.objectStoreNames.contains('clients')) {
+              objectStore = dbInstance.createObjectStore('clients', { keyPath: 'id', autoIncrement: true });
+            } else {
+              // Sinon, on récupère la référence au magasin existant
+              objectStore = event.target.transaction.objectStore('clients');
+            }
+
+            // On vérifie et crée chaque index nécessaire pour éviter les erreurs
+            if (!objectStore.indexNames.contains('nom')) {
+              objectStore.createIndex('nom', 'nom', { unique: false });
+            }
+            if (!objectStore.indexNames.contains('page')) {
+              objectStore.createIndex('page', 'page', { unique: false });
+            }
+            if (!objectStore.indexNames.contains('statut')) {
+              objectStore.createIndex('statut', 'statut', { unique: false });
+            }
+          };
+          request.onsuccess = (event) => {
+            this._db = event.target.result;
+            resolve();
+          };
+        });
+      },
+      _getStore(mode) {
+        const transaction = this._db.transaction('clients', mode);
+        return transaction.objectStore('clients');
+      },
+      add(client) {
+        return new Promise((resolve, reject) => {
+          const request = this._getStore('readwrite').add(client);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      },
+      update(client) {
+        return new Promise((resolve, reject) => {
+          const request = this._getStore('readwrite').put(client);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      },
+      delete(id) {
+        return new Promise((resolve, reject) => {
+          const request = this._getStore('readwrite').delete(id);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      },
+      get(id) {
+        return new Promise((resolve, reject) => {
+          const request = this._getStore('readonly').get(id);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      },
+      getAll() {
+        return new Promise((resolve, reject) => {
+          const request = this._getStore('readonly').getAll();
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      },
+      clear() {
+        return new Promise((resolve, reject) => {
+          const request = this._getStore('readwrite').clear();
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      }
+    };
+
+    let clientes = [];
+
+    /**
+     * Affiche une notification temporaire
+     * @param {string} message
+     */
+    function showSyncNotification(message) {
+      const notif = document.getElementById('sync-notification');
+      notif.querySelector('span').textContent = message;
+      notif.classList.add('show');
+      setTimeout(() => notif.classList.remove('show'), 3000);
+    }
+
+    /**
+     * Génère les initiales d'un nom
+     * @param {string} name
+     * @returns {string}
+     */
+    function getInitials(name) {
+      return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+
+    /**
+     * Formate une date de manière sécurisée, en gérant plusieurs formats d'entrée.
+     * @param {string | Date} dateInput - La date à formater (ISO string, "JJ/MM/AAAA", ou objet Date)
+     * @param {string} format - 'iso' pour YYYY-MM-DD, 'local' pour le format local (fr-FR)
+     * @returns {string} - La date formatée, ou une chaîne de remplacement si invalide.
+     */
+    function formatSafeDate(dateInput, format = 'local') {
+      if (!dateInput) return 'N/A';
+
+      let dateObject;
+      // Gère le format "JJ/MM/AAAA" qui pouvait être créé par d'anciennes versions
+      if (typeof dateInput === 'string' && dateInput.includes('/')) {
+        const parts = dateInput.split('/'); // JJ/MM/AAAA
+        dateObject = new Date(Date.UTC(parts[2], parts[1] - 1, parts[0]));
+      } else {
+        dateObject = new Date(dateInput);
+      }
+
+      if (isNaN(dateObject.getTime())) return 'Date invalide';
+
+      return format === 'iso' ? dateObject.toISOString().split('T')[0] : dateObject.toLocaleDateString('fr-FR', { timeZone: 'UTC' });
+    }
+
+    // Nouvelle fonction pour récupérer les clients depuis IndexedDB en fonction des filtres
+    async function fetchFilteredClientsFromDB(filters) {
+      const { nom, page, note, statut } = filters;
+      let clientsToProcess = [];
+
+      // Déterminer si nous pouvons utiliser un index pour la récupération principale
+      const useStatutIndex = statut !== 'tous' && !nom && !page && !note;
+      const usePageIndex = typeof page === 'number' && !nom && !note && statut === 'tous';
+
+      try {
+        if (useStatutIndex) {
+          const transaction = db._db.transaction('clients', 'readonly');
+          const store = transaction.objectStore('clients');
+          const index = store.index('statut');
+          const request = index.getAll(statut);
+          clientsToProcess = await new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+        } else if (usePageIndex) {
+          const transaction = db._db.transaction('clients', 'readonly');
+          const store = transaction.objectStore('clients');
+          const index = store.index('page');
+          const request = index.getAll(page);
+          clientsToProcess = await new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+        } else {
+          // Pour les filtres complexes (recherche de sous-chaîne sur nom/note, ou combinaison de filtres),
+          // ou si aucun index spécifique ne peut être utilisé seul, récupérer tout et filtrer en mémoire.
+          clientsToProcess = await db.getAll();
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération des clients filtrés depuis IndexedDB:", error);
+        // Fallback pour récupérer tout en cas d'erreur avec les requêtes indexées
+        clientsToProcess = await db.getAll();
+      }
+
+      // Appliquer les filtres en mémoire pour les recherches de sous-chaînes ou les combinaisons non couvertes par les requêtes d'index directes
+      return clientsToProcess.filter(c => {
+        const matchesNom = nom ? c.nom.toLowerCase().includes(nom) : true;
+        // Utiliser c.page === page si 'page' est déjà un nombre pour une comparaison numérique
+        const matchesPage = typeof page === 'number' ? c.page === page : true;
+        const matchesNote = note ? (c.note && c.note.toLowerCase().includes(note)) : true;
+        const matchesStatut = statut !== 'tous' ? c.statut === statut : true;
+
+        // Si un index a été utilisé pour la récupération principale, nous n'avons besoin d'appliquer que les filtres restants
+        // Si aucun index n'a été utilisé, tous les filtres sont appliqués ici.
+        return matchesNom && matchesPage && matchesNote && matchesStatut;
+      });
+    }
+
+    // === MISE À JOUR DES STATS ===
+    // Met à jour les compteurs globaux (En cours, Terminée) en lisant toute la DB
+    async function updateGlobalStats() {
+      try {
+        const allClients = await db.getAll();
+        const enCoursCount = allClients.filter(c => c.statut === 'en_cours').length;
+        const termineeCount = allClients.filter(c => c.statut === 'terminee').length;
+        
+        document.getElementById("en-cours-count").textContent = enCoursCount;
+        document.getElementById("terminee-count").textContent = termineeCount;
+      } catch (error) {
+        console.error("Erreur de mise à jour des stats globales:", error);
+      }
+    }
+
+    // Met à jour les stats de la vue actuelle (Total affiché, Total restant)
+    function updateViewStats() {
+      // 'clientes' est la liste filtrée actuellement visible
+      const totalInView = clientes.length;
+      const totalRestantInView = clientes.reduce((sum, client) => sum + (client.montantRestant || 0), 0);
+
+      document.getElementById("total-clients").textContent = totalInView;
+      document.getElementById("total-restant-value").textContent = totalRestantInView.toFixed(2);
+    }
+
+    // === FILTRER PAR STATUT ===
+    function filtrerParStatut(statut) {
+      // Gérer l'état actif des boutons
+      document.querySelectorAll('.stats .btn-stat').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.getElementById(`btn-stat-${statut}`).classList.add('active'); // Définir la classe active immédiatement
+      refreshClientList(); // Déclencher un rafraîchissement avec le nouveau filtre
+    }
+
+    // === AFFICHAGE DES CLIENTS ===
+    function afficherClientes(focusId = null) { // Paramètre statutFiltre supprimé car géré par refreshClientList
+      const list = document.getElementById("clients-list");
+      const emptyState = document.getElementById("empty-state");
+
+      // Le tableau 'clientes' est déjà filtré par refreshClientList
+      if (clientes.length === 0) {
+        list.style.display = "none";
+        emptyState.style.display = "block";
+      } else {
+        list.style.display = "grid";
+        emptyState.style.display = "none";
+        list.innerHTML = "";
+      }
+      
+      clientes.forEach(c => { // Itérer sur le tableau 'clientes' déjà filtré
+        // Logique de nom de classe harmonisée (déjà présente, juste pour s'assurer qu'elle est utilisée)
+        const statusClassName = c.statut.replace('_', '-');
+        const statusLabel = c.statut === 'terminee' ? 'Terminée' : 'En cours';
+        const statusEmoji = c.statut === 'terminee' ? '✅' : '⏳';
+        const div = document.createElement("div");
+        div.id = `client-card-${c.id}`;
+        div.className = `client-card glass ${statusClassName}`; // Utiliser le nom de classe harmonisé
+        div.innerHTML = `
+          <div class="client-header">
+            <div class="client-avatar">${getInitials(c.nom)}</div>
+            <h3 class="client-name">${escapeHtml(c.nom)}</h3>
+          </div>
+          <div class="client-info">
+            <div class="info-item">
+              <span class="status-badge ${statusClassName}">
+                <span>${statusEmoji}</span><span>${statusLabel}</span>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-icon">📄</span>
+              <span>Page ${c.page}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-icon">📅</span>
+              <span>Ajouté le ${formatSafeDate(c.dateAdded, 'local')}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-icon">💰</span>
+              <span>Restant: ${(c.montantRestant || 0).toFixed(2)} DA</span>
+            </div>
+            ${c.telephones && c.telephones.length > 0 ? `
+            <div class="info-item">
+              <span class="info-icon">📞</span>
+              <div class="telephones-list-card">
+                ${c.telephones.map((tel, index) => `
+                  <div class="telephone-card-item">
+                    <span>${escapeHtml(tel)}</span>
+                    <div class="telephone-actions">
+                      <button class="btn-icon" title="Copier" onclick="copierNumero('${escapeHtml(tel)}', event)">📋</button>
+                      <a href="tel:${escapeHtml(tel)}" class="btn-icon" title="Appeler">📞</a>
+                      <button class="btn-icon" title="Supprimer" onclick="supprimerTelephone(${c.id}, ${index})">🗑️</button>
+                    </div>
+                  </div>`).join('')}
+              </div>
+            </div>` : ''}
+          </div>
+          ${c.note ? `<div class="client-note">${escapeHtml(c.note)}</div>` : ''}
+          <div class="client-actions">
+            <button class="btn btn-secondary btn-sm" onclick="editerCliente(${c.id})">✏️ Modifier</button>
+            <button class="btn ${c.statut === 'terminee' ? 'btn-secondary' : 'btn-success'} btn-sm" onclick="basculerStatut(${c.id})">${c.statut === 'terminee' ? '↩️ Repasser en cours' : '✅ Marquer terminée'}</button>
+            <button class="btn btn-danger btn-sm" onclick="supprimerCliente(${c.id})">🗑️ Supprimer</button>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+
+      if (focusId) {
+        const elementToFocus = document.getElementById(`client-card-${focusId}`);
+        if (elementToFocus) {
+          elementToFocus.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+      updateViewStats();
+    }
+
+    /**
+     * Affiche les numéros de téléphone dans le formulaire d'édition.
+     * @param {string[]} telephones
+     */
+    function afficherTelephonesDansFormulaire(telephones = []) {
+      const list = document.getElementById('telephones-list-form');
+      list.innerHTML = ''; // Vider la liste
+      telephones.forEach((tel) => {
+        const div = document.createElement('div');
+        div.className = 'telephone-form-item';
+        div.innerHTML = `
+          <input type="text" class="telephone-form-input" value="${escapeHtml(tel)}" readonly>
+          <button type="button" class="btn btn-danger btn-icon-delete" onclick="this.parentElement.remove()">❌</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    // === RÉINITIALISER LE FORMULAIRE ===
+    function resetForm() {
+      document.getElementById("nom").value = "";
+      document.getElementById("page").value = "";
+      document.getElementById("montantRestant").value = "";
+      document.getElementById("note").value = "";
+      document.getElementById("statut").value = "en_cours";
+      document.getElementById("clientId").value = "";
+      document.getElementById("btn-text").textContent = "Ajouter le client";
+      const dateAddedInput = document.getElementById("dateAdded");
+      dateAddedInput.value = "";
+      dateAddedInput.disabled = true;
+      document.getElementById("btn-cancel").style.display = "none";
+
+      // Cacher et vider le gestionnaire de téléphones
+      document.getElementById('telephones-manager').style.display = 'none';
+      document.getElementById('telephones-list-form').innerHTML = '';
+      document.getElementById('telephone-input').value = '';
+    }
+
+    // === ANNULER L'ÉDITION ===
+    function annulerEdition() {
+      resetForm();
+    }
+
+    // === AJOUTER/MODIFIER CLIENT ===
+    async function ajouterCliente(event) {
+      event.preventDefault();
+      const nom = document.getElementById("nom").value.trim();
+      const page = parseInt(document.getElementById("page").value);
+      const montantRestant = parseFloat(document.getElementById("montantRestant").value) || 0;
+      const note = document.getElementById("note").value.trim();
+      const statut = document.getElementById("statut").value;
+      const clientId = parseInt(document.getElementById("clientId").value);
+
+      // Récupérer les numéros de téléphone depuis le formulaire
+      const telephoneInputs = document.querySelectorAll('#telephones-list-form .telephone-form-input');
+      const telephones = Array.from(telephoneInputs).map(input => input.value.trim()).filter(tel => tel);
+
+      if (isNaN(page) || page < 1) {
+        showSyncNotification("Le numéro de page doit être ≥ 1");
+        return;
+      }
+
+      const cliente = { nom, page, montantRestant, note, statut, telephones };
+      try {
+        let focusId = null;
+        if (clientId) {
+          cliente.id = clientId;
+          focusId = clientId;
+          const dateAddedValue = document.getElementById("dateAdded").value;
+          // Toujours enregistrer la date à minuit UTC pour la simplicité
+          cliente.dateAdded = new Date(dateAddedValue + 'T00:00:00Z').toISOString();
+          cliente.lastModified = new Date().toISOString();
+          await db.update(cliente);
+          showSyncNotification('Client modifié avec succès!');
+        } else {
+          // Pour un nouveau client, utiliser la date du jour, normalisée à minuit UTC
+          const today = new Date();
+          today.setUTCHours(0, 0, 0, 0);
+          cliente.dateAdded = today.toISOString();
+          cliente.lastModified = new Date().toISOString();
+          const newId = await db.add(cliente);
+          focusId = newId;
+          showSyncNotification('Client ajouté avec succès!');
+        }
+        resetForm();
+        await updateGlobalStats();
+        await refreshClientList(focusId, true); // Réinitialiser les filtres pour voir le nouveau client
+      } catch (error) {
+        console.error("Erreur d'enregistrement:", error);
+        showSyncNotification("Erreur de sauvegarde.");
+      }
+    }
+
+    // === RÉACTUALISER LA LISTE ===
+    async function refreshClientList(focusId = null, resetFilters = false) {
+      try {
+        if (resetFilters) {
+          document.getElementById('search-nom').value = '';
+          document.getElementById('search-page').value = '';
+          document.getElementById('search-note').value = '';
+          document.querySelectorAll('.stats .btn-stat').forEach(btn => btn.classList.remove('active'));
+          const tousButton = document.getElementById('btn-stat-tous');
+          if (tousButton) tousButton.classList.add('active');
+        }
+
+        const filtreNom = document.getElementById('search-nom').value.trim().toLowerCase();
+        const filtrePage = document.getElementById('search-page').value.trim();
+        const filtreNote = document.getElementById('search-note').value.trim().toLowerCase();
+        // Obtenir le filtre de statut actif actuel à partir des boutons
+        const currentStatutFilter = document.querySelector('.stats .btn-stat.active')?.id.replace('btn-stat-', '') || 'tous';
+
+        const filters = {
+          nom: filtreNom,
+          page: filtrePage ? parseInt(filtrePage) : null, // Convertir la page en nombre pour l'utilisation de l'index
+          note: filtreNote,
+          statut: currentStatutFilter
+        };
+
+        clientes = await fetchFilteredClientsFromDB(filters);
+        afficherClientes(focusId);
+      } catch (error) {
+        console.error("Erreur de chargement:", error);
+        showSyncNotification("Erreur de chargement.");
+      }
+    }
+
+    // === ÉDITER UN CLIENT ===
+    async function editerCliente(id) {
+      try {
+        const c = await db.get(id);
+        if (c) {
+          document.getElementById("nom").value = c.nom;
+          document.getElementById("page").value = c.page;
+          document.getElementById("montantRestant").value = c.montantRestant ? c.montantRestant : "";
+          document.getElementById("note").value = c.note;
+          document.getElementById("statut").value = c.statut || "en_cours";
+          document.getElementById("clientId").value = c.id;
+          document.getElementById("btn-text").textContent = "Mettre à jour";
+          const dateAddedInput = document.getElementById("dateAdded");
+          // Formater la date en YYYY-MM-DD pour l'input
+          let formattedDate = formatSafeDate(c.dateAdded, 'iso');
+          if (formattedDate === 'N/A' || formattedDate === 'Date invalide') {
+            // Si la date est invalide ou manquante, utiliser la date du jour
+            formattedDate = new Date().toISOString().split('T')[0];
+          }
+          dateAddedInput.value = formattedDate;
+          dateAddedInput.disabled = false;
+          document.getElementById("btn-cancel").style.display = "inline-flex";
+
+          // Afficher et peupler le gestionnaire de téléphones
+          document.getElementById('telephones-manager').style.display = 'block';
+          afficherTelephonesDansFormulaire(c.telephones || []);
+
+          document.getElementById("client-form-anchor").scrollIntoView({ behavior: 'smooth' });
+        }
+      } catch (error) {
+        console.error("Erreur d'édition:", error);
+      }
+    }
+
+    // === BASCULER STATUT ===
+    async function basculerStatut(id) {
+      try {
+        const c = await db.get(id);
+        if (c) {
+          c.statut = c.statut === 'terminee' ? 'en_cours' : 'terminee';
+          c.lastModified = new Date().toISOString();
+          await db.update(c);
+          showSyncNotification(c.statut === 'terminee' ? 'Commande terminée' : 'Commande remise en cours');
+          await updateGlobalStats();
+          await refreshClientList();
+        }
+      } catch (error) {
+        console.error("Erreur de basculement:", error);
+      }
+    }
+
+    // === SUPPRIMER CLIENT ===
+    async function supprimerCliente(id) {
+      if (confirm("Êtes-vous sûr de vouloir supprimer ce client ?")) {
+        try {
+          await db.delete(id);
+          showSyncNotification('Client supprimé');
+          await updateGlobalStats();
+          await refreshClientList();
+        } catch (error) {
+          console.error("Erreur de suppression:", error);
+        }
+      }
+    }
+
+    // === EXPORTER ===
+    async function exporterClientes() {
+      try {
+        const clientsToExport = await db.getAll();
+        const exportData = {
+          data: clientsToExport,
+          exported: new Date().toISOString(),
+          version: '2.0-indexedDB',
+          source: 'Gestion Clients'
+        };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+        const dlAnchor = document.createElement("a");
+        dlAnchor.setAttribute("href", dataStr);
+        dlAnchor.setAttribute("download", `clients_${new Date().toISOString().split('T')[0]}.json`);
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        dlAnchor.remove();
+        showSyncNotification('Export réussi!');
+      } catch (error) {
+        console.error("Erreur d'export:", error);
+        showSyncNotification("Erreur d'exportation.");
+      }
+    }
+
+    // === IMPORTER ===
+    function importerClientes(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function (e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          let data = imported.data && Array.isArray(imported.data) ? imported.data : imported;
+          if (Array.isArray(data)) {
+            const validClients = data.filter(isValidClient);
+            if (validClients.length === 0) {
+              alert("Aucun client valide trouvé.");
+              return;
+            }
+            await db.clear();
+            for (const client of validClients) {
+              // Assure que le champ montantRestant existe avec une valeur par défaut
+              if (typeof client.montantRestant !== 'number') {
+                client.montantRestant = 0;
+              }
+              if (!Array.isArray(client.telephones)) {
+                client.telephones = [];
+              }
+              delete client.id;
+              await db.add(client);
+            }
+            await updateGlobalStats();
+            await refreshClientList(null, true); // Réinitialiser les filtres après un import
+            showSyncNotification(`${validClients.length} clients importés.`);
+          } else {
+            alert("Format invalide.");
+          }
+        } catch (err) {
+          console.error('Erreur d’import:', err);
+          alert("Erreur de lecture du fichier.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // === ÉCOUTEURS ===
+    ['search-nom', 'search-page', 'search-note'].forEach(id => {
+      document.getElementById(id).addEventListener("input", () => {
+        refreshClientList();
+      });
+    });
+
+    // --- STYLES ADDITIONNELS POUR LES TÉLÉPHONES ---
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+      .telephones-list-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+      }
+      .telephone-card-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        background: rgba(0,0,0,0.1);
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+      }
+      .telephone-actions {
+        display: flex;
+        gap: 0.25rem;
+      }
+      .btn-icon {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        padding: 0.2rem 0.5rem;
+        min-width: 30px;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all .2s ease;
+      }
+      .btn-icon:hover {
+        background: var(--surface-hover);
+        color: var(--text-primary);
+      }
+      .telephone-form-item {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .telephone-form-item .telephone-form-input {
+        flex: 1;
+      }
+      .telephone-form-item .btn-icon-delete {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+      }
+      .btn-icon-add {
+        padding-left: 1rem;
+        padding-right: 1rem;
+        flex-shrink: 0;
+      }
+    `;
+    document.head.appendChild(styleSheet);
+
+    // === INITIALISATION ===
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        // On spécifie explicitement la version 2 pour déclencher la mise à jour si nécessaire
+        await db.init(2);
+        console.log('✅ Base de données initialisée et/ou mise à jour.');
+        await updateGlobalStats();
+
+        await refreshClientList(null, true); // Réinitialiser les filtres au chargement initial
+      } catch (error) {
+        console.error('Erreur d’initialisation:', error);
+        alert("Impossible d'initialiser la base de données.");
+      }
+    });
+  </script>
+</body>
+</html>
